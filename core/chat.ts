@@ -4,7 +4,7 @@ const CONFIG = {
     model: Deno.env.get("BUNNY_MODEL"),
 }
 
-async function createChat(req: Request) {
+export async function createChat(req: Request) {
     const {content} = await req.json();
     const messages = [
         {role: "user", content},
