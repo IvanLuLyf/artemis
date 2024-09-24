@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Artemis</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        #app {
+            text-align: center;
+            padding: 24px;
+        }
+
+        #form_query {
+            display: grid;
+            grid-template-columns: 1fr 80px;
+            gap: 16px;
+            width: 100%;
+            max-width: 600px;
+            margin: 48px auto 0;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 100%;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            background-color: #1996ff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #1682dc;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #result {
+            margin: 20px auto 0;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            max-width: 600px;
+            text-align: left;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+
+        #result:empty {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <h1>Artemis</h1>
+    <form id="form_query">
+        <label>
+            <input name="content" placeholder="" value=""/>
+        </label>
+        <button name="btn" type="submit" class="btn">Ask</button>
+    </form>
+    <div id="result"></div>
+</div>
+<script>
+    (function () {
+        const BASE_URL = './chat';
+        const form = document.getElementById('form_query');
+        const btn = form.elements.btn;
+        const areaResult = document.getElementById('result');
+        form.addEventListener('submit', (ev) => {
+            ev.preventDefault();
+            const el = form.elements;
+            btn.disabled = true;
+            let tm = 0;
+            const content = el.content.value || '';
+            if (!content) return;
+            areaResult.innerHTML = '';
+            const id = setInterval(() => {
+                btn.innerText = '....'.substring(3 - (++tm) % 3);
+            }, 300)
+            requestSSE(BASE_URL, {
+                content,
+            }, (m) => {
+                areaResult.innerText += (m?.text || '')
+            }, () => {
+                btn.disabled = false;
+                clearInterval(id);
+                btn.innerText = 'Ask';
+            });
+        });
+        const NOOP = () => undefined;
+
+        function requestSSE(url, body, callback = NOOP, onFinish = NOOP) {
+            const xhr = new XMLHttpRequest();
+            let last = 0;
+            const processResponse = (res) => {
+                const lines = res.split(/\r|\n|\r\n/);
+                let txt = '';
+                lines.forEach((line) => {
+                    if (line.startsWith('data:')) {
+                        txt += line.substring(6).trim();
+                    } else if (line.trim() === '') {
+                        if (txt !== '') {
+                            if (txt !== '[DONE]') {
+                                try {
+                                    callback(JSON.parse(txt));
+                                } catch (e) {
+
+                                }
+                            }
+                            txt = '';
+                        }
+                    }
+                });
+            };
+            xhr.open('POST', url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onprogress = function () {
+                const response = xhr.responseText.substring(last);
+                last = xhr.responseText.length;
+                processResponse(response);
+            };
+            xhr.onload = () => onFinish();
+            xhr.responseType = 'text';
+            xhr.send(JSON.stringify(body));
+        }
+    })();
+</script>
+</body>
+</html>
