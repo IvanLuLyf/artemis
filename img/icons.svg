@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <symbol id="config" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="m24 4-6 6h-8v8l-6 6 6 6v8h8l6 6 6-6h8v-8l6-6-6-6v-8h-8l-6-6Z"></path>
+        <path stroke="currentColor" d="M24 30a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z"></path>
+    </symbol>
+    <symbol id="pic" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="M5 10a2 2 0 0 1 2-2h34a2 2 0 0 1 2 2v28a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V10Z"
+              clip-rule="evenodd"></path>
+        <path stroke="currentColor" d="M14.5 18a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" clip-rule="evenodd"></path>
+        <path stroke="currentColor" d="m15 24 5 4 6-7 17 13v4a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-4l10-10Z"></path>
+    </symbol>
+    <symbol id="refresh" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor"
+              d="M42 8v16M6 24v16m36-16c0-9.941-8.059-18-18-18a17.947 17.947 0 0 0-12.952 5.5M6 24c0 9.941 8.059 18 18 18a17.94 17.94 0 0 0 12.5-5.048"></path>
+    </symbol>
+    <symbol id="send" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="M43 5 29.7 43l-7.6-17.1L5 18.3 43 5Z"></path>
+        <path stroke="currentColor" d="M43 5 22.1 25.9"></path>
+    </symbol>
+    <symbol id="clear" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="M20 5.914h8v8h15v8H5v-8h15v-8Z" clip-rule="evenodd"></path>
+        <path stroke="currentColor" d="M8 40h32V22H8v18Z"></path>
+        <path stroke="currentColor" d="M16 39.898v-5.984m8 5.984v-6m8 6v-5.984M12 40h24"></path>
+    </symbol>
+    <symbol id="plus" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="m24.06 10-.036 28M10 24h28"></path>
+    </symbol>
+    <symbol id="add-one" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor"
+              d="M24 44c11.046 0 20-8.954 20-20S35.046 4 24 4 4 12.954 4 24s8.954 20 20 20Z"></path>
+        <path stroke="currentColor" d="M24 16v16m-8-8h16"></path>
+    </symbol>
+    <symbol id="info" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor"
+              d="M24 44a19.937 19.937 0 0 0 14.142-5.858A19.937 19.937 0 0 0 44 24a19.938 19.938 0 0 0-5.858-14.142A19.937 19.937 0 0 0 24 4 19.938 19.938 0 0 0 9.858 9.858 19.938 19.938 0 0 0 4 24a19.937 19.937 0 0 0 5.858 14.142A19.938 19.938 0 0 0 24 44Z"
+        ></path>
+        <path fill="currentColor" d="M24 11a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5Z" clip-rule="evenodd"
+              fill-rule="evenodd"></path>
+        <path stroke="currentColor" d="M24.5 34V20h-2M21 34h7"></path>
+    </symbol>
+    <symbol id="help" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor"
+              d="M24 44a19.937 19.937 0 0 0 14.142-5.858A19.937 19.937 0 0 0 44 24a19.938 19.938 0 0 0-5.858-14.142A19.937 19.937 0 0 0 24 4 19.938 19.938 0 0 0 9.858 9.858 19.938 19.938 0 0 0 4 24a19.937 19.937 0 0 0 5.858 14.142A19.938 19.938 0 0 0 24 44Z"></path>
+        <path stroke="currentColor" d="M24 28.625v-4a6 6 0 1 0-6-6"></path>
+        <path fill="currentColor" d="M24 37.625a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" clip-rule="evenodd"
+              fill-rule="evenodd"></path>
+    </symbol>
+    <symbol id="left" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="M31 36 19 24l12-12"></path>
+    </symbol>
+    <symbol id="history" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="M5.818 6.727V14h7.273"></path>
+        <path stroke="currentColor"
+              d="M4 24c0 11.046 8.954 20 20 20v0c11.046 0 20-8.954 20-20S35.046 4 24 4c-7.402 0-13.865 4.021-17.323 9.998"></path>
+        <path stroke="currentColor" d="m24.005 12-.001 12.009 8.48 8.48"></path>
+    </symbol>
+    <symbol id="delete" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor" d="M9 10v34h30V10H9Z"></path>
+        <path stroke="currentColor" d="M20 20v13m8-13v13M4 10h40"></path>
+        <path stroke="currentColor" d="m16 10 3.289-6h9.488L32 10H16Z"></path>
+    </symbol>
+    <symbol id="setting-config" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor"
+              d="M41.5 10h-6m-8-4v8m0-4h-22m8 14h-8m16-4v8m22-4h-22m20 14h-6m-8-4v8m0-4h-22"></path>
+    </symbol>
+    <symbol id="more" viewBox="0 0 48 48" fill="none">
+        <circle fill="currentColor" r="3" cy="24" cx="12"></circle>
+        <circle fill="currentColor" r="3" cy="24" cx="24"></circle>
+        <circle fill="currentColor" r="3" cy="24" cx="36"></circle>
+    </symbol>
+    <symbol id="more-app" viewBox="0 0 48 48" fill="none">
+        <path stroke="currentColor"
+              d="M18 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Zm0 24H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V30a2 2 0 0 0-2-2ZM42 4H30a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2Z"></path>
+        <path stroke="currentColor" d="M28 28h16m-8 8h8m-16 8h16"></path>
+    </symbol>
+</svg>

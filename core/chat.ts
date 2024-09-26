@@ -5,8 +5,9 @@ const CONFIG = {
 }
 
 export async function createChat(req: Request) {
-    const {content} = await req.json();
+    const {content, messages: history = []} = await req.json();
     const messages = [
+        ...history.slice(-size),
         {role: "user", content},
     ];
     const decoder = new TextDecoder("utf-8");

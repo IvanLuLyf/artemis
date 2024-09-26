@@ -1,148 +1,655 @@
-<!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <title>Artemis</title>
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0">
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        #app {
-            text-align: center;
-            padding: 24px;
-        }
-
-        #form_query {
-            display: grid;
-            grid-template-columns: 1fr 80px;
-            gap: 16px;
-            width: 100%;
-            max-width: 600px;
-            margin: 48px auto 0;
-        }
-
-        input {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            width: 100%;
-        }
-
-        .btn {
-            padding: 10px 20px;
-            background-color: #1996ff;
-            color: #fff;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .btn:hover {
-            background-color: #1682dc;
-        }
-
-        .btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
-
-        #result {
-            margin: 20px auto 0;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            max-width: 600px;
-            text-align: left;
-            font-size: 16px;
-            line-height: 1.5;
-        }
-
-        #result:empty {
-            display: none;
-        }
-    </style>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/chat.css">
+    <link rel="stylesheet" href="css/icon.css">
+    <script src="js/util.js"></script>
+    <script src="js/ui.js"></script>
 </head>
 <body>
 <div id="app">
-    <h1>Artemis</h1>
-    <form id="form_query">
-        <label>
-            <input name="content" placeholder="" value=""/>
-        </label>
-        <button name="btn" type="submit" class="btn">Ask</button>
-    </form>
-    <div id="result"></div>
+    <div class="main-container">
+        <div class="nav-view">
+            <div class="nav-view-main">
+                <div class="main-list-container">
+                    <div class="title-bar">
+                        <div class="title-bar-btn-left"></div>
+                        <div>对话</div>
+                        <div id="btn_new" class="title-bar-btn-right" title="新建对话">
+                            <span class="btn-icon"><i class="gg-add"></i></span>
+                        </div>
+                    </div>
+                    <div id="area_conversations" class="main-list-scrollable"></div>
+                </div>
+            </div>
+            <div class="nav-view-bar" style="display: none;"></div>
+        </div>
+        <div id="chat_container" class="chat-container">
+            <div class="title-bar">
+                <div id="btn_back" class="title-bar-btn-left" title="返回">
+                    <span class="btn-icon"><i class="gg-chevron-left"></i></span>
+                </div>
+                <div id="chat_title">对话详情</div>
+                <div></div>
+            </div>
+            <div id="msg_container" class="msg-container"></div>
+            <div class="bottom-bar">
+                <div class="chat-bar">
+                    <div class="chat-bar-tools">
+                        <button class="rmx-btn rmx-btn-small" title="清除对话" data-action="clear">
+                            <span class="btn-icon">
+                                <svg class="rmx-svg-icon" stroke-width="4">
+                                    <use href="img/icons.svg#clear"></use>
+                                </svg>
+                            </span>
+                        </button>
+                    </div>
+                    <div class="chat-bar-input">
+                        <label for="txt_msg"></label>
+                        <textarea id="txt_msg" class="rmx-form-textarea" autocomplete="off" inputmode="text"
+                                  placeholder="通过shift+回车换行"></textarea>
+                    </div>
+                    <div class="chat-bar-send">
+                        <button class="rmx-btn rmx-btn-primary" id="btn_send">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 <script>
     (function () {
-        const BASE_URL = './chat';
-        const form = document.getElementById('form_query');
-        const btn = form.elements.btn;
-        const areaResult = document.getElementById('result');
-        form.addEventListener('submit', (ev) => {
-            ev.preventDefault();
-            const el = form.elements;
-            btn.disabled = true;
-            let tm = 0;
-            const content = el.content.value || '';
-            if (!content) return;
-            areaResult.innerHTML = '';
-            const id = setInterval(() => {
-                btn.innerText = '....'.substring(3 - (++tm) % 3);
-            }, 300)
-            requestSSE(BASE_URL, {
-                content,
-            }, (m) => {
-                areaResult.innerText += (m?.text || '')
-            }, () => {
-                btn.disabled = false;
-                clearInterval(id);
-                btn.innerText = 'Ask';
-            });
+        const ROLES = {USER: 0, ASSISTANT: 1};
+        const ROLE_TEXT = {0: "user", 1: "ai"};
+        window.__AI_CONFIG__ = window.__AI_CONFIG__ || {};
+        const USER = {
+            username: "{{ user.username }}",
+            firstName: "{{ user.first_name }}",
+            lastName: "{{ user.last_name }}",
+        };
+        USER.avatarText = (USER.lastName || USER.username.substring(0, 3)).toUpperCase();
+
+        const ctx = {currentRound: 0, task_abilities: []};
+        const config = createStorage("chat", {
+            system_prompt: "",
+            temperature: 0.65,
+            round: 3,
+            auto_expand: true,
+            auto_shrink: true,
+            dev: false,
+            agent_abilities: [],
+            assistants: [],
         });
-        const NOOP = () => undefined;
+        const $events = createEvents();
+        const $dialogPreview = createDialog({
+            persist: true,
+            glass: true,
+            title: "预览",
+            content: `<div class="chat-preview-body"><img src="" class="chat-preview-img" alt="Preview"/></div>`,
+            footer: "",
+        });
+        const $dialogConfig = createFormDialog({
+            title: "对话配置",
+            persist: true,
+            fields: [
+                {column: "system_prompt", label: "系统提示"},
+                {column: "round", label: "记忆轮次", type: "number", min: 0, max: 6, step: 1, initValue: 3},
+                {column: "temperature", label: "温度", type: "range", min: 0, max: 1, step: 0.01, initValue: 0.65},
+                {column: "auto_expand", label: "自动展开过程", type: "checkbox"},
+                {column: "auto_shrink", label: "最终回答时收起过程", type: "checkbox"},
+                {column: "dev", label: "开发模式", type: "checkbox"},
+            ],
+        })
+        window.cs = ctx;
 
-        function requestSSE(url, body, callback = NOOP, onFinish = NOOP) {
-            const xhr = new XMLHttpRequest();
-            let last = 0;
-            const processResponse = (res) => {
-                const lines = res.split(/\r|\n|\r\n/);
-                let txt = '';
-                lines.forEach((line) => {
-                    if (line.startsWith('data:')) {
-                        txt += line.substring(6).trim();
-                    } else if (line.trim() === '') {
-                        if (txt !== '') {
-                            if (txt !== '[DONE]') {
-                                try {
-                                    callback(JSON.parse(txt));
-                                } catch (e) {
+        const $listConversation = document.getElementById('area_conversations');
+        const $areaChat = document.getElementById('chat_container');
+        const $listChat = document.getElementById('msg_container');
+        const $txtInput = document.getElementById('txt_msg');
+        const $btnSend = document.getElementById('btn_send');
+        const $btnBack = document.getElementById('btn_back');
+        const $btnNew = document.getElementById('btn_new');
 
-                                }
-                            }
-                            txt = '';
-                        }
-                    }
-                });
-            };
-            xhr.open('POST', url, true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.onprogress = function () {
-                const response = xhr.responseText.substring(last);
-                last = xhr.responseText.length;
-                processResponse(response);
-            };
-            xhr.onload = () => onFinish();
-            xhr.responseType = 'text';
-            xhr.send(JSON.stringify(body));
+        function unselectConversation() {
+            const $sel = document.querySelector('.main-list-item[data-selected="true"]');
+            if ($sel) delete $sel.dataset.selected;
         }
-    })();
+
+        function createConversation(c, llm = false) {
+            const $el = document.createElement('div');
+            $el.id = `conversation_${c.id}`;
+            $el.classList.add('main-list-item');
+            $el.innerHTML = `<div class="conversation-item">
+<div class="conversation-content">
+    <div class="conversation-text">${c.name}</div>
+    <div class="conversation-memo">${friendlyTime(c.timestamp)}</div>
+</div>
+<div class="conversation-actions">
+    <div class="conversation-action" data-action="remove"><i class="gg-trash"></i></div>
+</div>
+</div>`;
+            $el.addEventListener('click', (e) => {
+                unselectConversation();
+                const $t = e.target.closest('[data-action]');
+                if ($t && $el.contains($t)) {
+                    const action = $t.dataset.action;
+                    onConversationAction({action, data: c, $el});
+                    return;
+                }
+                ctx.current = c;
+                ctx.currentId = c.id;
+                $el.dataset.selected = 'true';
+                loadConversation(c.id);
+            });
+            $listConversation.prepend($el);
+            if (llm) {
+                unselectConversation();
+                $el.dataset.selected = 'true';
+            }
+        }
+
+        function onConversationAction({$el, action, data}) {
+            if (action === "remove") {
+                showConfirm("是否删除该对话?").then((res) => {
+                    if (res.action === "confirm") {
+                        ctx.conversations.remove(data.id).then(() => {
+                            return ctx.messages.removeByIndex("cid", data.id);
+                        }).then(() => {
+                            $el.remove();
+                            loadConversation(0);
+                        });
+                    }
+                })
+            }
+        }
+
+        function createMsgContent(msg, isUser = false, wrapper = false) {
+            if (msg.type === "ppt") {
+                return `<div class="chat-message-app-card" data-msg-id="${msg.id}">点击查看PPT</div>`;
+            } else if (msg.type === "image") {
+                return `<img src="${msg.src || ''}" alt="${msg.alt}" class="chat-message-img" />`;
+            } else {
+                const content = msg.content || '';
+                const md = markdownToHtml(isUser ? escapeHtml(content) : content);
+                return wrapper ? `<div class="chat-message-content">${md}</div>` : md;
+            }
+        }
+
+        function createNotification(txt) {
+            const $n = document.createElement('div');
+            $n.classList.add('notification');
+            $n.innerHTML = `<span>${txt}</span>`;
+            $listChat.append($n);
+        }
+
+        function createMessage(msg, llm = false) {
+            const $el = document.createElement('div');
+            const isUser = msg.role === ROLES.USER;
+            $el.classList.add('message', isUser ? 'right' : 'left');
+            const content = createMsgContent(msg, isUser, true);
+            const progress = llm ? `<details class="chat-message-progress" ${config.auto_expand ? 'open' : ''}>
+<summary>详情</summary>
+<div class="chat-message-progress-detail"></div>
+</details>` : '';
+            const avatar = isUser ? `<div class="avatar-text">${USER.avatarText}</div>` : '<div class="avatar-text">AI</div>';
+            $el.innerHTML = `${avatar}<div class="bubble">${progress}${content}</div>`;
+            const $bubble = $el.querySelector('.bubble');
+            const $content = $el.querySelector('.chat-message-content');
+            const $progress = $el.querySelector('.chat-message-progress-detail');
+            const $detail = $el.querySelector('.chat-message-progress');
+            if (msg.timestamp - ctx.timestamp > 300000) {
+                createNotification(friendlyTime(msg.timestamp));
+            }
+            ctx.timestamp = msg.timestamp;
+            $listChat.append($el);
+            $el.scrollIntoView();
+            return {
+                $bubble,
+                $content,
+                $progress,
+                $detail,
+            }
+        }
+
+        function loadConversation(cid) {
+            ctx.currentId = cid;
+            ctx.timestamp = 0;
+            ctx.currentRound = 0;
+            $areaChat.style.display = 'flex';
+            $listChat.innerHTML = '';
+            if (cid === 0) {
+                ctx.current = null;
+                $txtInput.focus();
+            } else {
+                ctx.currentRound = 0;
+                ctx.messages.listByIndex('cid', cid).then((list) => {
+                    ctx.currentRound = Math.ceil(list.length / 2);
+                    list.forEach((x) => createMessage(x));
+                });
+            }
+        }
+
+        function createAnswer($p, index, hide) {
+            const $el = document.createElement('div');
+            if (index === -1) {
+                $el.classList.add('answer-item-task');
+            } else {
+                $el.classList.add('answer-item');
+            }
+            if (hide) $el.classList.add('answer-item-hide')
+            $el.dataset.index = index;
+            $el.innerHTML = `<div class="answer-steps"></div>
+<div class="answer-text"></div>
+<div class="answer-pieces"></div>
+<div class="answer-item-tools" style="display: none">
+    <button class="btn btn-recreate" type="button" data-index="${index}">重新生成</button>
+</div>`;
+            const $text = $el.querySelector('.answer-text');
+            const $pieces = $el.querySelector('.answer-pieces');
+            const steps = $el.querySelector('.answer-steps');
+            $p.append($el);
+            const nextStep = (hide) => {
+                const $step = document.createElement('div');
+                $step.classList.add('answer-step');
+                if (hide) $step.classList.add('answer-step-hide')
+                $step.innerHTML = `<div class="answer-text"></div><div class="answer-pieces"></div>`;
+                const $text = $step.querySelector('.answer-text');
+                const $pieces = $step.querySelector('.answer-pieces');
+                steps.append($step);
+                return [$text, $pieces];
+            }
+            return [$text, $pieces, nextStep]
+        }
+
+        function createPieces($p, pieces) {
+            const dom = pieces.map((x) => {
+                const href = x.url ? ` href="${x.url}" ` : '';
+                const title = x.title ? `<div class="piece-item-title"><a ${href} target="_blank">${x.title}</a></div>` : '';
+                const content = (x.content || '').replaceAll('<img ', '<img loading="lazy" ')
+                return `<div class="piece-item"><div class="piece-item-score">${x.score || ''}</div><div class="piece-item-text">${title}${content}</div></div>`;
+            }).join("");
+            $p.innerHTML = `<details><summary>参考</summary><div>${dom}</div></details>`;
+        }
+
+        function createTaskList($p, tasks) {
+            const $msg = $p.parentNode;
+            let $flow;
+            if (config.dev) {
+                $p.style.height = '100px';
+                $p.style.overflow = 'auto';
+                $p.style.resize = 'vertical';
+                $flow = document.createElement('div');
+                $flow.classList.add('answer-item-task-json');
+                $flow.innerText = JSON.stringify(tasks, undefined, 2);
+                $msg.insertBefore($flow, $p.nextSibling);
+            }
+            const div = document.createElement('div');
+            div.innerHTML = `<div class="answer-item-task-list">
+${tasks.map((x) => `<div class="answer-item-task-item ${x.hide ? 'item-hide' : ''}">${x.query}</div>`).join('')}
+</div>`;
+            const taskItems = [...div.querySelectorAll('.answer-item-task-item')];
+            const setSuccess = (index) => {
+                const t = index === 'last' ? taskItems[taskItems.length - 1] : taskItems[index];
+                if (t) t.dataset.state = 'success';
+            };
+            const setStarted = (index) => {
+                const t = index === 'last' ? taskItems[taskItems.length - 1] : taskItems[index];
+                if (t) t.dataset.state = 'running';
+            }
+            if (config.dev) {
+                $msg.insertBefore(div, $flow.nextSibling);
+            } else {
+                $msg.dataset.custom = '1';
+                $msg.innerHTML = '';
+                $msg.append(div);
+            }
+            return [setSuccess, setStarted];
+        }
+
+        const REGEXP_THOUGHT = /^(.*?)(?:Action:\s*(.*?))?(?:Observation:\s*(.*))?(?:Final Answer:\s*(.*?))?$/s;
+
+        function createThought(text) {
+            const matches = text.match(REGEXP_THOUGHT);
+            const [all, thought, action, observation, answer] = matches;
+            const actions = (action || '').split('Action Input:');
+            const actionName = actions[0].trim(), actionInput = (actions[1] || '').trim();
+            const t = `<p class="chat-message-progress-thought">${thought.replace(/^Thought:\s*/, '<span class="rmx-tag rmx-tag-primary">思考</span> ')}</p>`;
+            const a = actions.length > 1 ? `<p class="chat-message-progress-thought">
+<span class="rmx-tag rmx-tag-warn">动作</span> <span class="rmx-tag rmx-tag-danger">${actionName}</span> ${actionInput ? `<span class="rmx-tag">${actionInput}</span>` : ''}
+</p>` : '';
+            const o = observation ? `<p class="chat-message-progress-thought">
+<span class="rmx-tag rmx-tag-success">结果</span> ${observation}
+</p>` : '';
+            return t + a + o;
+        }
+
+        function processText(msgCtx, $llmMsg) {
+            if (msgCtx.isAgent) {
+                if (msgCtx.text.includes("Final Answer: ")) {
+                    if (config.auto_shrink && !msgCtx.detailClosed) {
+                        $llmMsg.$detail.open = false;
+                        msgCtx.detailClosed = true;
+                    }
+                    $llmMsg.$content.innerText = msgCtx.text.split("Final Answer: ")[1];
+                }
+                if (!config.dev) {
+                    msgCtx.$text.innerHTML = createThought(msgCtx.text);
+                    return;
+                }
+            }
+            if (!config.dev) {
+                if (!msgCtx.useFlows) {
+                    msgCtx.$text.innerText = '任务规划中...';
+                    return;
+                }
+            }
+            msgCtx.$text.innerText = msgCtx.text;
+        }
+
+        function requestLLM(requestBody, $llmMsg, llmMsg, mode = "agent") {
+            const msgCtx = {
+                cur: -2,
+                step: undefined,
+                name: '',
+                output: '',
+                text: '',
+                image: '',
+                $text: null,
+                $pieces: null,
+                nextStep: null,
+                setSuccess: null,
+                setStarted: null,
+                knowledge: [],
+
+                useAutoTask: null,
+                isAgent: mode === "agent",
+            };
+            $llmMsg.$detail.dataset.generate = "true";
+            ctx.request = requestSSE('./chat', requestBody, (t) => {
+                if (t.q && t.a) {
+                    return;
+                }
+                if (msgCtx.cur !== t.index || !msgCtx.$text) {
+                    if (msgCtx.$text) {
+                        processText(msgCtx, $llmMsg);
+                        msgCtx.setSuccess?.(msgCtx.cur);
+                    }
+                    [msgCtx.$text, msgCtx.$pieces, msgCtx.nextStep] = createAnswer($llmMsg.$progress, t.index, !!t.hide);
+                    if (msgCtx.useFlows) msgCtx.setStarted(t.index);
+                    Object.assign(msgCtx, {
+                        cur: t.index,
+                        step: undefined,
+                        last: !!t.last,
+                        text: '',
+                        output: t.output || '',
+                        name: t.name || '',
+                    });
+                    msgCtx.step = undefined;
+                }
+                if (msgCtx.step !== t.step) {
+                    processText(msgCtx, $llmMsg);
+                    [msgCtx.$text, msgCtx.$pieces] = msgCtx.nextStep(!!t.hide);
+                    Object.assign(msgCtx, {
+                        step: t.step,
+                        text: '',
+                        output: t.output || '',
+                        name: t.name || '',
+                    });
+                }
+                if (t.output) {
+                    msgCtx.output = t.output;
+                }
+                if (t.text) {
+                    msgCtx.text += t.text;
+                    processText(msgCtx, $llmMsg);
+                    if (msgCtx.last && !msgCtx.output) {
+                        $llmMsg.$content.innerText = msgCtx.text;
+                    }
+                }
+                if (t.pieces) {
+                    msgCtx.knowledge = msgCtx.knowledge.concat(t.pieces);
+                    createPieces(msgCtx.$pieces, t.pieces)
+                } else if (t.auto_task) {
+                    msgCtx.useAutoTask = t.auto_task;
+                    msgCtx.ability = t.ability;
+                } else if (t.flows) {
+                    msgCtx.useFlows = true;
+                    [msgCtx.setSuccess, msgCtx.setStarted] = createTaskList(msgCtx.$text, t.flows);
+                } else if (t.image !== undefined) {
+                    msgCtx.image = t.image;
+                }
+            });
+            ctx.request.then(() => {
+                llmMsg.content = msgCtx.text;
+                $llmMsg.$detail.dataset.generate = "false";
+                if (config.auto_shrink) $llmMsg.$detail.open = false;
+                if (mode === "auto") {
+                    msgCtx.setSuccess?.("last");
+                }
+                if (msgCtx.useAutoTask) {
+                    onCallAssistant(msgCtx.useAutoTask, msgCtx.ability);
+                    $llmMsg.$content.innerHTML = `<div class="chat-message-task-card">
+<span class="rmx-tag rmx-tag-primary">任务</span>
+<span class="rmx-tag rmx-tag-warn">${msgCtx.ability?.name || ''}</span>
+${msgCtx.useAutoTask}
+</div>`;
+                    return;
+                }
+                if (msgCtx.output === "chart") {
+                    llmMsg.alt = msgCtx.name;
+                    llmMsg.type = 'image';
+                    llmMsg.content = `![${msgCtx.name}](${msgCtx.name})`;
+                    llmMsg.src = msgCtx.image;
+                } else if (msgCtx.output === "ppt") {
+                    llmMsg.type = "ppt";
+                }
+                llmMsg.content = llmMsg.content.replace(/(\[)?<cite data-id="([^"]+)">([^<]*)<\/cite>(\])?/g, ($0, $1, kId) => {
+                    const k = msgCtx.knowledge[kId - 1];
+                    if (!k) return "";
+                    const c = k.url ? `<a target="_blank" href="${k.url}">${kId}</a>` : kId;
+                    return `<cite data-title="${k.title}">${c}</cite>`;
+                });
+                ctx.messages.add(llmMsg).then((id) => {
+                    llmMsg.id = id;
+                    $llmMsg.$content.innerHTML = createMsgContent(llmMsg);
+                });
+            });
+        }
+
+        function onCallAssistant(task, ability) {
+            ctx.task_abilities = [...(ability.abilities || [])];
+            if (ability.id === "draw_assistant") {
+            } else {
+                createAnswers(task, true);
+            }
+        }
+
+        function createAnswers(queryText, useAbility) {
+            let autoTaskText = undefined;
+            let query;
+
+            try {
+                query = JSON.parse(queryText);
+                if (useAbility) {
+                    query = [];
+                    autoTaskText = query.task || queryText;
+                }
+            } catch (err) {
+                if (useAbility) {
+                    query = [];
+                    autoTaskText = queryText;
+                } else {
+                    query = queryText;
+                }
+            }
+
+
+            const timestamp = Date.now();
+            const llmMsg = {cid: ctx.current.id, role: ROLES.ASSISTANT, content: '...', timestamp}
+            const $llmMsg = createMessage(llmMsg, true);
+            llmMsg.content = '';
+            $llmMsg.$content.innerHTML = "";
+            $llmMsg.$content.dataset.generate = "true";
+            requestLLM({
+                query,
+                auto_task: autoTaskText,
+                task_abilities: ctx.task_abilities,
+                chart_render: 'matplotlib',
+                raw_llm_config: config.llm_config,
+                temperature: config.temperature,
+                stream: true,
+                sse: true,
+            }, $llmMsg, llmMsg, "auto");
+        }
+
+        function sendLLM(content, history) {
+            const timestamp = Date.now();
+            $txtInput.value = "";
+            const msg = {cid: ctx.current.id, role: ROLES.USER, content, timestamp};
+            const abilities = [];
+            ctx.messages.add(msg).then(() => {
+                createMessage(msg);
+                const llmMsg = {cid: ctx.current.id, role: ROLES.ASSISTANT, content: '...', timestamp}
+                const $llmMsg = createMessage(llmMsg, true);
+                llmMsg.content = '';
+                requestLLM({
+                    content,
+                    messages: history,
+                }, $llmMsg, llmMsg, "agent");
+            });
+        }
+
+        function sendWithHistory(content) {
+            ctx.messages.listByIndex('cid', ctx.current.id).then((list) => {
+                const size = config.round > 0 ? Math.min(config.round, ctx.currentRound) * 2 : 0;
+                const history = size > 0 ? list.slice(-size).map((x) => {
+                    return {role: ROLE_TEXT[x.role], content: x.content};
+                }) : [];
+                ctx.currentRound++;
+                if (config.system_prompt) {
+                    history.unshift({
+                        role: "system",
+                        content: config.system_prompt,
+                    });
+                }
+                sendLLM(content, history);
+            });
+        }
+
+        function send(text) {
+            if (!ctx.current && ctx.currentId !== 0) return;
+            const content = text || $txtInput.value?.trim();
+            if (content) {
+                if (ctx.currentId === 0) {
+                    const tmpC = {name: content, timestamp: Date.now()};
+                    ctx.conversations.add(tmpC).then((id) => {
+                        ctx.currentId = id;
+                        tmpC.id = id;
+                        ctx.current = tmpC;
+                        createConversation(tmpC, true);
+                        sendWithHistory(content);
+                    });
+                } else {
+                    sendWithHistory(content);
+                }
+            }
+        }
+
+        function loadConversations() {
+            ctx.conversations.all().then((list) => {
+                list.forEach((x) => {
+                    createConversation(x);
+                });
+            });
+        }
+
+        $btnSend.addEventListener('click', () => {
+            send();
+        });
+        $txtInput.addEventListener('keydown', (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.stopPropagation();
+                e.preventDefault();
+                send();
+            }
+        });
+        $btnBack.addEventListener('click', () => {
+            $areaChat.style.display = '';
+        });
+        $btnNew.addEventListener('click', () => {
+            loadConversation(0);
+        });
+        listenAreaAction('.chat-bar-tools', ({action}) => {
+            $events.emit(`chat_tool_${action}`, {});
+        });
+        listenAreaAction($listChat, ({el}) => {
+            const msgId = el.dataset.msgId;
+            ctx.messages.get(+msgId).then((msg) => {
+                if (msg) {
+                    $events.emit(`chat_card_${msg.type}`, msg);
+                }
+            });
+        }, '.chat-message-app-card');
+        listenAreaAction($listChat, ({el}) => {
+            const $img = $dialogPreview.$body.querySelector('img');
+            $img.src = el.src;
+            const $bubble = el.closest('.chat-message-content');
+            const ctx = {index: -1, list: []};
+            if ($bubble) {
+                ctx.list = [...$bubble.querySelectorAll('img')];
+                ctx.index = ctx.list.indexOf(el);
+            }
+            const onKeydown = (e) => {
+                if (e.key === "ArrowLeft") {
+                    ctx.index--;
+                } else if (e.key === "ArrowRight") {
+                    ctx.index++;
+                }
+                if (ctx.index < 0) {
+                    ctx.index = 0;
+                    toast('已经是第一张图片');
+                }
+                if (ctx.index >= ctx.list.length) {
+                    ctx.index = ctx.list.length - 1;
+                    toast('已经是最后一张图片');
+                }
+                if (ctx.list[ctx.index]) $img.src = ctx.list[ctx.index].src;
+            }
+            document.addEventListener('keydown', onKeydown);
+            $dialogPreview.open().then(() => {
+                document.removeEventListener('keydown', onKeydown);
+            });
+        }, 'img')
+        $events.on('chat_tool_clear', () => {
+            ctx.currentRound = 0;
+            createNotification('记忆已清空');
+        });
+        createDb('chat', 1, (db) => {
+            if (!db.objectStoreNames.contains('conversations')) {
+                const os = db.createObjectStore('conversations', {
+                    keyPath: 'id',
+                    autoIncrement: true
+                });
+            }
+            if (!db.objectStoreNames.contains('messages')) {
+                const os = db.createObjectStore('messages', {
+                    keyPath: 'id',
+                    autoIncrement: true
+                });
+                os.createIndex('cid', 'cid', {unique: false});
+            }
+        }).then((res) => {
+            ctx.db = res;
+            ctx.conversations = res.table('conversations');
+            ctx.messages = res.table('messages');
+            loadConversations();
+            loadConversation(0);
+        });
+    })()
 </script>
 </body>
 </html>
