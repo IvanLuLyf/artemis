@@ -67,9 +67,9 @@
         const ROLE_TEXT = {0: "user", 1: "assistant"};
         window.__AI_CONFIG__ = window.__AI_CONFIG__ || {};
         const USER = {
-            username: "{{ user.username }}",
-            firstName: "{{ user.first_name }}",
-            lastName: "{{ user.last_name }}",
+            username: "Q?",
+            firstName: "",
+            lastName: "",
         };
         USER.avatarText = (USER.lastName || USER.username.substring(0, 3)).toUpperCase();
 
@@ -195,7 +195,7 @@
 <summary>详情</summary>
 <div class="chat-message-progress-detail"></div>
 </details>` : '';
-            const avatar = isUser ? `<div class="avatar-text">${USER.avatarText}</div>` : '<div class="avatar-text">AI</div>';
+            const avatar = isUser ? `<div class="avatar-text">${USER.avatarText}</div>` : '<img class="avatar-text" src="img/bunny.png" alt=""/>';
             $el.innerHTML = `${avatar}<div class="bubble">${progress}${content}</div>`;
             const $bubble = $el.querySelector('.bubble');
             const $content = $el.querySelector('.chat-message-content');
